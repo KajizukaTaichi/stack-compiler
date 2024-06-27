@@ -61,6 +61,8 @@ class LLVMCodeGen:
                 return self.builder.mul(left, right)
             elif node.op == 'div':
                 return self.builder.sdiv(left, right)
+            elif node.op == 'mod':
+                return self.builder.srem(left, right)
             else:
                 raise ValueError("Unsupported operation")
 
