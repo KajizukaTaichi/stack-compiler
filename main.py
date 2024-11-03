@@ -11,8 +11,9 @@ def tokenize(expression):
             is_quote = not is_quote
             current += i
         elif i == ' ' and not is_quote:
-            tokens.append(current)
-            current = ""
+            if current:
+                tokens.append(current)
+                current = ""
         else:
             current += i
     tokens.append(current)
