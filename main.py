@@ -1,11 +1,33 @@
+from llvmlite import ir, binding
+from llvmlite import binding as llvm
+import ctypes
+
 def tokenize(expression):
-    tokens = expression.split()
+    tokens = []
+    current = ""
+    is_quote = False
+    for i in expression:
+        if i == '"':
+            is_quote = not is_quote
+            tokens += i
+        elif i == ' ' and not is_quote:
+            tokens.append(current)
+            current = ""
+        else:
+            current += i
+    tokens.append(current)
+    print(tokens)
     return tokens
+
 
 class Node:
     pass
 
 class Number(Node):
+    def __init__(self, value):
+        self.value = value
+
+class String(Node):
     def __init__(self, value):
         self.value = value
 
@@ -20,13 +42,13 @@ def parse(tokens):
     for token in tokens:
         if token.isdigit():
             stack.append(Number(int(token)))
+        elif token[0] == '"' and token[len(token) - 1] == '"':
+            stack.append(Number(str(token[1:len(token) - 1])))
         else:
             right = stack.pop()
             left = stack.pop()
             stack.append(BinOp(left, right, token))
     return stack[0]
-
-from llvmlite import ir, binding
 
 binding.initialize()
 binding.initialize_native_target()
@@ -34,7 +56,7 @@ binding.initialize_native_asmprinter()
 
 class LLVMCodeGen:
     def __init__(self):
-        self.module = ir.Module(name=__file__)
+        self.module = ir.Module(name="main")
         self.builder = None
         self.func = None
         self.block = None
@@ -50,6 +72,11 @@ class LLVMCodeGen:
     def codegen(self, node):
         if isinstance(node, Number):
             return ir.Constant(ir.IntType(32), node.value)
+        elif isinstance(node, String):
+            hello_str = ir.GlobalVariable(self.module, ir.ArrayType(ir.Int8Type(), 13), name="str")
+            hello_str.initializer = ir.Constant(ir.ArrayType(ir.Int8Type(), 13), bytearray(f"{node.value}\0"))
+            hello_str.global_constant = True
+            return hello_str
         elif isinstance(node, BinOp):
             left = self.codegen(node.left)
             right = self.codegen(node.right)
@@ -61,24 +88,8 @@ class LLVMCodeGen:
                 return self.builder.mul(left, right)
             elif node.op == 'div':
                 return self.builder.sdiv(left, right)
-            elif node.op == 'mod':
-                return self.builder.srem(left, right)
             else:
                 raise ValueError("Unsupported operation")
-
-print("Stack Compiler")
-codegen = LLVMCodeGen()
-expression = input("> ")
-tokens = tokenize(expression)
-ast = parse(tokens)
-llvm_ir = codegen.generate_code(ast)
-print(llvm_ir)
-
-from llvmlite import binding as llvm
-
-llvm.initialize()
-llvm.initialize_native_target()
-llvm.initialize_native_asmprinter()
 
 def compile_ir(ir_code):
     target = llvm.Target.from_default_triple()
@@ -90,10 +101,22 @@ def compile_ir(ir_code):
     engine.run_static_constructors()
     return engine
 
-engine = compile_ir(llvm_ir)
-main_ptr = engine.get_function_address("main")
+print("Stack Compiler")
+while True:
+    codegen = LLVMCodeGen()
+    expression = input("> ")
+    tokens = tokenize(expression)
+    ast = parse(tokens)
+    llvm_ir = codegen.generate_code(ast)
+    print(llvm_ir)
 
-import ctypes
-main_func = ctypes.CFUNCTYPE(ctypes.c_int32)(main_ptr)
-result = main_func()
-print("Result:", result)
+    llvm.initialize()
+    llvm.initialize_native_target()
+    llvm.initialize_native_asmprinter()
+
+    engine = compile_ir(llvm_ir)
+    main_ptr = engine.get_function_address("main")
+
+    main_func = ctypes.CFUNCTYPE(ctypes.c_int32)(main_ptr)
+    result = main_func()
+    print(result)
