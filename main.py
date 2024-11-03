@@ -9,7 +9,7 @@ def tokenize(expression):
     for i in expression:
         if i == '"':
             is_quote = not is_quote
-            tokens += i
+            current += i
         elif i == ' ' and not is_quote:
             tokens.append(current)
             current = ""
@@ -43,7 +43,7 @@ def parse(tokens):
         if token.isdigit():
             stack.append(Number(int(token)))
         elif token[0] == '"' and token[len(token) - 1] == '"':
-            stack.append(Number(str(token[1:len(token) - 1])))
+            stack.append(String(str(token[1:len(token) - 1])))
         else:
             right = stack.pop()
             left = stack.pop()
@@ -56,7 +56,7 @@ binding.initialize_native_asmprinter()
 
 class LLVMCodeGen:
     def __init__(self):
-        self.module = ir.Module(name="main")
+        self.module = ir.Module(name="stack")
         self.builder = None
         self.func = None
         self.block = None
@@ -73,8 +73,8 @@ class LLVMCodeGen:
         if isinstance(node, Number):
             return ir.Constant(ir.IntType(32), node.value)
         elif isinstance(node, String):
-            hello_str = ir.GlobalVariable(self.module, ir.ArrayType(ir.Int8Type(), 13), name="str")
-            hello_str.initializer = ir.Constant(ir.ArrayType(ir.Int8Type(), 13), bytearray(f"{node.value}\0"))
+            hello_str = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value)), name="str")
+            hello_str.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(node.value)), bytearray(f"{node.value}\0", "utf-8"))
             hello_str.global_constant = True
             return hello_str
         elif isinstance(node, BinOp):
