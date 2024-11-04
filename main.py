@@ -120,4 +120,4 @@ while True:
 
     main_func = ctypes.CFUNCTYPE(ctypes.c_int32)(main_ptr)
     result = main_func()
-    print(result)
+    print("Result:", result)
