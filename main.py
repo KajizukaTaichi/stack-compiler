@@ -38,6 +38,11 @@ class BinOp(Node):
         self.right = right
         self.op = op
 
+class FuncCall(Node):
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
+
 def parse(tokens):
     stack = []
     for token in tokens:
@@ -47,11 +52,14 @@ def parse(tokens):
             stack.append(Number(token))
         elif token[0] == '"' and token[len(token) - 1] == '"':
             stack.append(String(token[1:len(token) - 1]))
-        else:
+        elif token in ["add", "sub", "mul", "div"]:
             right = stack.pop()
             left = stack.pop()
             stack.append(BinOp(left, right, token))
-    return stack[len(stack) - 1]
+        else:
+            args = stack.pop()
+            stack.append(FuncCall(token, args))
+    return stack
 
 binding.initialize()
 binding.initialize_native_target()
@@ -64,11 +72,15 @@ class LLVMCodeGen:
         self.func = None
         self.block = None
 
-    def generate_code(self, node):
+    def generate_code(self, nodes):
         self.func = ir.Function(self.module, ir.FunctionType(ir.IntType(32), ()), name="main")
         self.block = self.func.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(self.block)
-        result = self.codegen(node)
+
+        result = None
+        for node in nodes:
+            result = self.codegen(node)
+
         self.builder.ret(result)
         return str(self.module)
 
@@ -76,10 +88,15 @@ class LLVMCodeGen:
         if isinstance(node, Number):
             return ir.Constant(ir.IntType(32), node.value)
         elif isinstance(node, String):
-            text = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value)), name="str")
-            text.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(node.value)), bytearray(f"{node.value}\0", "utf-8"))
+            text = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value) + 1), name="str")
+            text.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(node.value) + 1), bytearray(f"{node.value}\0", "utf-8"))
             text.global_constant = True
             return text
+        elif isinstance(node, FuncCall):
+            puts_ty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(8))], var_arg=False)
+            puts_func = ir.Function(self.module, puts_ty, name=node.name)
+            addr = self.builder.bitcast(self.codegen(node.args), ir.PointerType(ir.IntType(8)))
+            return self.builder.call(puts_func, [addr])
         elif isinstance(node, BinOp):
             left = self.codegen(node.left)
             right = self.codegen(node.right)
@@ -109,7 +126,8 @@ while True:
     codegen = LLVMCodeGen()
     expression = input("> ")
     tokens = tokenize(expression)
-    ast = parse(tokens)
+    ast =  parse(tokens)
+
     llvm_ir = codegen.generate_code(ast)
     print(llvm_ir)
 
