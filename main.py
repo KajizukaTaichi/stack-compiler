@@ -25,12 +25,12 @@ class Node:
     pass
 
 class Number(Node):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, value: int):
+        self.value: int = int(value)
 
 class String(Node):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, value: str):
+        self.value: str = str(value)
 
 class BinOp(Node):
     def __init__(self, left, right, op):
@@ -42,9 +42,9 @@ def parse(tokens):
     stack = []
     for token in tokens:
         if token.isdigit():
-            stack.append(Number(int(token)))
+            stack.append(Number(token))
         elif token[0] == '"' and token[len(token) - 1] == '"':
-            stack.append(String(str(token[1:len(token) - 1])))
+            stack.append(String(token[1:len(token) - 1]))
         else:
             right = stack.pop()
             left = stack.pop()
@@ -74,10 +74,10 @@ class LLVMCodeGen:
         if isinstance(node, Number):
             return ir.Constant(ir.IntType(32), node.value)
         elif isinstance(node, String):
-            hello_str = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value)), name="str")
-            hello_str.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(node.value)), bytearray(f"{node.value}\0", "utf-8"))
-            hello_str.global_constant = True
-            return hello_str
+            text = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value)), name="str")
+            text.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(node.value)), bytearray(f"{node.value}\0", "utf-8"))
+            text.global_constant = True
+            return text
         elif isinstance(node, BinOp):
             left = self.codegen(node.left)
             right = self.codegen(node.right)
@@ -119,5 +119,4 @@ while True:
     main_ptr = engine.get_function_address("main")
 
     main_func = ctypes.CFUNCTYPE(ctypes.c_int32)(main_ptr)
-    result = main_func()
-    print("Result:", result)
+    print("Result:", main_func())
