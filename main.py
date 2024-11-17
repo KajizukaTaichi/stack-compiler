@@ -56,9 +56,9 @@ def parse(tokens):
             right = stack.pop()
             left = stack.pop()
             stack.append(BinOp(left, right, token))
-        else:
+        elif token == "println":
             args = stack.pop()
-            stack.append(FuncCall(token, args))
+            stack.append(FuncCall("puts", args))
     return stack
 
 binding.initialize()
