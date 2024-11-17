@@ -41,6 +41,8 @@ class BinOp(Node):
 def parse(tokens):
     stack = []
     for token in tokens:
+        if token == "":
+            continue
         if token.isdigit():
             stack.append(Number(token))
         elif token[0] == '"' and token[len(token) - 1] == '"':
