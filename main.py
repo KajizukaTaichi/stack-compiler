@@ -49,7 +49,7 @@ def parse(tokens):
             right = stack.pop()
             left = stack.pop()
             stack.append(BinOp(left, right, token))
-    return stack[0]
+    return stack[len(stack) - 1]
 
 binding.initialize()
 binding.initialize_native_target()
