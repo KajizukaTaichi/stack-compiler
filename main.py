@@ -70,12 +70,17 @@ class LLVMCodeGen:
         self.module = ir.Module(name="stack")
         self.builder = None
         self.func = None
+        self.puts = None
         self.block = None
+        self.str_count = 0
 
     def generate_code(self, nodes):
         self.func = ir.Function(self.module, ir.FunctionType(ir.IntType(32), ()), name="main")
         self.block = self.func.append_basic_block(name="entry")
         self.builder = ir.IRBuilder(self.block)
+
+        puts_ty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(8))], var_arg=False)
+        self.puts = ir.Function(self.module, puts_ty, name="puts")
 
         result = None
         for node in nodes:
@@ -88,15 +93,13 @@ class LLVMCodeGen:
         if isinstance(node, Number):
             return ir.Constant(ir.IntType(32), node.value)
         elif isinstance(node, String):
-            text = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value) + 1), name="str")
+            text = ir.GlobalVariable(self.module, ir.ArrayType(ir.IntType(8), len(node.value) + 1), name=f"str{self.str_count}")
             text.initializer = ir.Constant(ir.ArrayType(ir.IntType(8), len(node.value) + 1), bytearray(f"{node.value}\0", "utf-8"))
-            text.global_constant = True
+            text.global_constant = True; self.str_count += 1
             return text
         elif isinstance(node, FuncCall):
-            puts_ty = ir.FunctionType(ir.IntType(32), [ir.PointerType(ir.IntType(8))], var_arg=False)
-            puts_func = ir.Function(self.module, puts_ty, name=node.name)
             addr = self.builder.bitcast(self.codegen(node.args), ir.PointerType(ir.IntType(8)))
-            return self.builder.call(puts_func, [addr])
+            return self.builder.call(self.puts, [addr])
         elif isinstance(node, BinOp):
             left = self.codegen(node.left)
             right = self.codegen(node.right)
