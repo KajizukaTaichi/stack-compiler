@@ -1,5 +1,4 @@
 # Stack Compiler
 The compiler of Stack using llvmlite
 
-<img width="685" alt="image" src="https://github.com/user-attachments/assets/fa872e92-0649-44b5-807a-22627069c50d">
-
+<img width="770" alt="image" src="https://github.com/user-attachments/assets/07e64565-41fa-40aa-89c1-b1aa1cacd57d">
